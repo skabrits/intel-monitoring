@@ -1,9 +1,6 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  annotations:
-    deprecated.daemonset.template.generation: "1"
-  generation: 1
   labels:
     app: intel-xpumanager
   name: intel-xpumanager
