@@ -9,6 +9,7 @@ kind: Service
 metadata:
   annotations:
     prometheus.io/scrape: "true"
+    prometheus.io/port: '29999'
   labels:
     app: intel-xpumanager
   name: intel-xpumanager
