@@ -4,20 +4,20 @@
 # @file servicemonitor-intel-xpum.yaml
 #
 
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: intel-xpumanager
-  labels:
-    app: intel-xpumanager
-spec:
-  selector:
-    matchLabels:
-      app: intel-xpumanager
-  namespaceSelector:
-    matchNames:
-      - default
-  endpoints:
-    - port: metrics
-      path: /metrics
-      interval: 5s
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: intel-xpumanager
+#   labels:
+#     app: intel-xpumanager
+# spec:
+#   selector:
+#     matchLabels:
+#       app: intel-xpumanager
+#   namespaceSelector:
+#     matchNames:
+#       - default
+#   endpoints:
+#     - port: metrics
+#       path: /metrics
+#       interval: 5s
