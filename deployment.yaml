@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    deprecated.daemonset.template.generation: "1"
+  generation: 1
+  labels:
+    app: intel-xpumanager
+  name: intel-xpumanager
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: intel-xpumanager
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: intel-xpumanager
+    spec:
+      nodeSelector:
+        intel.feature.node.kubernetes.io/gpu: "true"
+      containers:
+      - command:
+        - /usr/bin/xpumd
+        env:
+        - name: SPDLOG_LEVEL
+          value: info
+        - name: XPUM_REST_NO_TLS
+          value: "1"
+        - name: XPUM_EXPORTER_NO_AUTH
+          value: "1"
+        - name: XPUM_EXPORTER_ONLY
+          value: "1"
+        image: intel/xpumanager
+        imagePullPolicy: IfNotPresent
+        name: xpumd
+        resources:
+          limits:
+            gpu.intel.com/i915_monitoring: "1"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add:
+            - SYS_ADMIN
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/kubelet/pod-resources
+          name: kubeletpodres
+        - mountPath: /tmp
+          name: sockdir
+      - command:
+        - gunicorn
+        - --bind
+        - 0.0.0.0:29999
+        - --worker-connections
+        - "64"
+        - --worker-class
+        - gthread
+        - --workers
+        - "1"
+        - --threads
+        - "4"
+        - xpum_rest_main:main()
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: XPUM_EXPORTER_NO_AUTH
+          value: "1"
+        - name: XPUM_EXPORTER_ONLY
+          value: "1"
+        image: intel/xpumanager
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healtz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: python-exporter
+        ports:
+        - containerPort: 29999
+          name: metrics
+          protocol: TCP
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsUser: 0
+        startupProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /metrics
+            port: metrics
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp
+          name: sockdir
+        - mountPath: /dev/dri
+          name: devdri
+          readOnly: true
+        workingDir: /usr/lib/xpum/rest
+      dnsPolicy: ClusterFirst
+      hostNetwork: true
+      imagePullSecrets:
+      - name: docker-config-secret
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - hostPath:
+          path: /var/lib/kubelet/pod-resources
+          type: ""
+        name: kubeletpodres
+      - emptyDir:
+          medium: Memory
+        name: sockdir
+      - hostPath:
+          path: /dev/dri
+          type: ""
+        name: devdri
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
